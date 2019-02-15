@@ -1,0 +1,265 @@
+---
+title: "CS 422 Section 02"
+output: html_notebook
+author: Juanyan Wang
+---
+
+###2.1 K-means clustering
+####(a) Data cleanup
+##### (i)
+```{r}
+#install.packages("factoextra")
+#install.packages("fpc")
+#install.packages("ggfortify")
+
+library(cluster)
+library(factoextra)
+library(fpc)
+library(ggfortify)
+
+options("digits"=4)
+
+data <- read.csv("file19.csv",header=T,row.names = 1,sep = ",")
+kmeans.data <- data[,-4]
+kmeans.data <- kmeans.data[,-5]
+kmeans.data <- kmeans.data[,-6]
+cat("(i) May need to remove bottom canines, bottom premolars and bottom molars.
+Because bottom canines has very similar values with top canines;
+bottom premolars has very similar values with top premolars;
+bottom molars also has very similar values with top molars.")
+```
+
+##### (ii)
+```{r}
+cat("\n(ii) No, because the values of these attributes are in a similar range.")
+```
+
+##### (iii)
+```{r}
+
+```
+
+####(b) Clustering
+##### (i)
+```{r}
+fviz_nbclust(kmeans.data, kmeans, method="wss")
+cat("\n(i) 5 clusters needed.")
+```
+
+##### (ii)
+```{r}
+kmeans <- kmeans(kmeans.data, centers=5, nstart=25)
+fviz_cluster(kmeans,kmeans.data,main="K-Means clustering")
+```
+
+##### (iii)
+```{r}
+cat("\n(iii) The sizes of 5 clusters are",kmeans$size)
+```
+
+##### (iv)
+```{r}
+cat("\n(iv) The total SSE is",kmeans$tot.withinss)
+```
+
+##### (v)
+```{r}
+cat("\n(v) The SSE of each cluster is",kmeans$withinss)
+```
+
+##### (vi)
+```{r}
+kmeans.data[which(kmeans$cluster == 1),]
+kmeans.data[which(kmeans$cluster == 2),]
+kmeans.data[which(kmeans$cluster == 3),]
+kmeans.data[which(kmeans$cluster == 4),]
+kmeans.data[which(kmeans$cluster == 5),]
+cat("\n(vi) Yes. Most animals belong to the same kind are grouped into a same cluster.")
+```
+
+
+###2.2 Hierarchical clustering
+#### (a)
+```{r}
+hier.data <- read.csv("file46.csv",header=T,row.names = 1,sep=",")
+
+hier.single <- eclust(hier.data, "hclust", hc_method="single")
+fviz_dend(hier.single, show_labels=TRUE, as.ggplot=T,main="Single Linkage")
+
+hier.complete <- eclust(hier.data, "hclust", hc_method="complete")
+fviz_dend(hier.complete, show_labels=TRUE, as.ggplot=T,main="Complete Linkage")
+
+hier.average<- eclust(hier.data, "hclust",hc_method="average")
+fviz_dend(hier.average, show_labels=TRUE, as.ggplot=T,main="Average Linkage")
+```
+
+#### (b)
+```{r}
+cat("\n(b) 
+For single linkage: {Great Britain,Ireland},{West Germany,Austria},{Luxemburg,Switzerland},{France,Belgium},{Denmark,Norway}.
+For complete linkage:{West Germany,Austria},{Luxemburg,Switzerland},{Denmark,Norway},{Great Britain,Ireland},{France,Belgium}.
+For average linkage:{Portugal,Spain},{West Germany,Austria},{Luxemburg,Switzerland},{France,Belgium},{Denmark,Norway},{Great Britain,Ireland}.")
+```
+
+#### (c)
+```{r}
+cat("\n(c) Complete linkage is more reasonable. Because the percentage of population who speak language other than Italian is very small, and it is not proper to take Italy into the cluster whose main language is the minor one in Italy.")
+```
+
+#### (d)
+```{r}
+cat("\n(d) Average linkage will be considered pure since it produces 6 two-singleton clusters.")
+```
+
+#### (e)
+```{r}
+cut.hier <- cutree(hier.average, h=125)
+table(cut.hier)
+cat("\n(e) There are 7 clusters at the height of 125.")
+```
+
+#### (f)
+```{r}
+k.hier.single <- eclust(hier.data, "hclust", k=7,hc_method="single")
+fviz_dend(k.hier.single, show_labels=TRUE, as.ggplot=T,main="Single Linkage")
+
+k.hier.complete <- eclust(hier.data, "hclust",k=7, hc_method="complete")
+fviz_dend(k.hier.complete, show_labels=TRUE, as.ggplot=T,main="Complete Linkage")
+
+k.hier.average<- eclust(hier.data, "hclust",k=7,hc_method="average")
+fviz_dend(k.hier.average, show_labels=TRUE, as.ggplot=T,main="Average Linkage")
+```
+
+#### (g)
+```{r}
+stats.single <- cluster.stats(dist(hier.data),k.hier.single$cluster)
+cat("\n(g) Single Silhouette width:",stats.single$avg.silwidth," Single Dunn:",stats.single$dunn)
+
+stats.complete <- cluster.stats(dist(hier.data),k.hier.complete$cluster)
+cat("\nComplete Silhouette width:",stats.complete$avg.silwidth," Complete Dunn:",stats.complete$dunn)
+
+stats.Average <- cluster.stats(dist(hier.data),k.hier.average$cluster)
+cat("\nAverage Silhouette width:",stats.Average$avg.silwidth," Average Dunn:",stats.Average$dunn)
+```
+
+####(h)
+```{r}
+cat("\n(h) Consider the Dunn index, cluster using average linkage will be the best.")
+```
+
+####(i)
+```{r}
+cat("\n(i) Consider the Silhouette width, cluster using complete linkage will be the best.")
+```
+
+
+###2.3 K-Means and PCA
+####(a)
+##### (i)
+```{r}
+origData <- read.csv("HTRU_2-small.csv",sep=",")
+scale.data <- scale(origData[,1:8])
+pca <- prcomp(scale.data)
+summary(pca)
+cat("\n(i) 0.785 cumulative proportion of variance is explained by the first two components.")
+```
+
+#####(ii)
+```{r}
+autoplot(pca, data = origData, colour = 'class',loadings=T,loadings.label = TRUE,label=T,main="PCA plot")
+```
+
+##### (iii)
+```{r}
+cat("\n(iii) Observations of class 1 tend to have high values in kurtosis, skewness, mean.dm.snr and std.dev.dm.snr while having low values in std.dev, mean, skewness.dm.snr and kurtosis.dm.snr.
+    Observations of class 0 tend to have low values in kurtosis, skewness while having high values in std.dev, mean, skewness.dm.snr, mean.dm.snr, std.dev.dm.snr and kurtosis.dm.snr.")
+```
+
+
+####(b)
+##### (i)
+```{r}
+b.kmeans <- kmeans(scale.data, centers=2,nstart=25)
+fviz_cluster(b.kmeans,scale.data)
+```
+
+##### (ii)
+```{r}
+cat("\n(ii) Yes, the clusters are similar. Because in the PCA plot, points with similar PC1 and PC2 value will be put in the similar position whereas PC1 and PC2 are actually a kind of linear combination of original attributes, so its effect is similar with clustering.")
+```
+
+##### (iii)
+```{r}
+cat("\n(iii) The distribution of the observations in each cluster is",b.kmeans$size)
+```
+
+##### (iv)
+```{r}
+cat("\n(iv) The distribution of class 0 and 1 is",length(which(origData$class==0)),length(which(origData$class==1)))
+```
+
+##### (v)
+```{r}
+cat("\n(v) Class 0 is the majority class and Class 1 is the minority class.")
+```
+
+##### (vi)
+```{r}
+c1 <- origData[which(b.kmeans$cluster==1),]
+c2 <- origData[which(b.kmeans$cluster==2),]
+if(nrow(c1) > nrow(c2)){
+  largeCluster.data <- c1
+}else{
+  largeCluster.data <- c2
+}
+ 
+cat("\n(vi) The distribution of class 0 and 1 in larger cluster is",length(which(largeCluster.data$class==0)),length(which(largeCluster.data$class==1)))
+```
+
+##### (vii)
+```{r}
+cat("\n(vii) This larger cluster should represent class 0.")
+```
+
+##### (viii)
+```{r}
+cat("\n(viii) The variance explained by clustering is",b.kmeans$betweenss/b.kmeans$totss)
+```
+
+##### (ix)
+```{r}
+b.silh <- cluster::silhouette(b.kmeans$cluster,dist(scale.data))
+summary(b.silh)
+cat("\n(ix) The average Silhouette width is 0.601.")
+```
+
+##### (x)
+```{r}
+cat("\n(x) The per cluster Silhouette width is 0.6592 and 0.1516. Based on that, cluster 1 is better.")
+```
+
+
+####(c)
+##### (i)
+```{r}
+pca.kmeans <- kmeans(pca$x[,1:2],centers=2,nstart=25)
+fviz_cluster(pca.kmeans,pca$x[,1:2])
+cat("\n(i) The shape of clusters is similar with the shapes in a(ii) and b(i).")
+```
+
+#####(ii)
+```{r}
+pca.kmeans.silh <- cluster::silhouette(pca.kmeans$cluster, dist(pca$x[,1:2]))
+summary(pca.kmeans.silh)
+cat("\n(ii) The average Silhouette width is 0.683.")
+```
+
+#####(iii)
+```{r}
+cat("\n(iii) The per cluster Silhouette width is 0.4489 and 0.7003. Based on that, cluster 2 is better.")
+```
+
+#####(iv)
+```{r}
+cat("\n(iv) Compare with the Silhouette width of b(ix) and b(x), the values in c(ii) and c(iii) are better, which shows that the effect of clustering is better after using PCA.")
+```

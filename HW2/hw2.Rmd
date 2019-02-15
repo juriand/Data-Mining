@@ -1,0 +1,250 @@
+---
+title: "CS 422 Section 02"
+output: html_notebook
+author: Juanyan Wang
+---
+###2.1 Decision tree classification
+```{r}
+#install.packages('rpart.plot')
+#install.packages('caret')
+#install.packages('e1071', dependencies=TRUE)
+#install.packages('ROCR')
+#install.packages('knitr')
+#install.packages('randomForest')
+#install.packages('arules')
+
+library(rpart)
+library(rpart.plot)
+library(caret)
+library(ROCR)
+library(randomForest)
+library(arules)
+
+set.seed(1122)
+train <- read.csv("adult-train.csv", sep = ",")
+test <- read.csv("adult-test.csv", sep = ",")
+```
+
+####2.1 (a)
+```{r}
+#remove from train
+sum(train$age == "?")
+sum(train$workclass == "?")
+sum(train$fnlwgt == "?")
+sum(train$education == "?")
+sum(train$education_num == "?")
+sum(train$marital_status == "?")
+sum(train$occupation == "?")
+sum(train$relationship == "?")
+sum(train$race == "?")
+sum(train$sex == "?")
+sum(train$capital_gain == "?")
+sum(train$capital_loss == "?")
+sum(train$hours_per_week == "?")
+sum(train$native_country == "?")
+sum(train$income == "?")
+
+removeIndex <- which(train$workclass == "?")
+removeIndex <- append(removeIndex, which(train$occupation == "?"))
+removeIndex <- append(removeIndex, which(train$native_country == "?"))
+removeIndex <- removeIndex[!duplicated(removeIndex)]
+train <- train[-c(removeIndex), ]
+
+#remove from test
+sum(test$age == "?")
+sum(test$workclass == "?")
+sum(test$fnlwgt == "?")
+sum(test$education == "?")
+sum(test$education_num == "?")
+sum(test$marital_status == "?")
+sum(test$occupation == "?")
+sum(test$relationship == "?")
+sum(test$race == "?")
+sum(test$sex == "?")
+sum(test$capital_gain == "?")
+sum(test$capital_loss == "?")
+sum(test$hours_per_week == "?")
+sum(test$native_country == "?")
+sum(test$income == "?")
+
+removeIndex <- which(test$workclass == "?")
+removeIndex <- append(removeIndex, which(test$occupation == "?"))
+removeIndex <- append(removeIndex, which(test$native_country == "?"))
+removeIndex <- removeIndex[!duplicated(removeIndex)]
+test <- test[-c(removeIndex), ]
+```
+
+####2.1 (b)
+```{r}
+tModel <- rpart(income~., data = train)
+summary(tModel)
+rpart.plot(tModel, extra=104, fallen.leaves = T, type=4, main="Rpart on Adult data")
+table(train$income)
+cat("(i) The top three important predictors are relationship, marital_status and capital_gain.\n")
+cat("(ii) The first split is done on relationship. 
+    The predicted class of the first node is <=50K.
+    The observation distribution between the <=50K and >50K classes is 22653  and 7508.")
+```
+
+####2.1 (c)
+```{r}
+options("digits"=3)
+predT <- predict(tModel, test, type="class")
+confusionMatrix(predT, as.factor(test$income))
+cat("(i) The balanced accuracy is 0.726.\n")
+cat("(ii) The balanced error rate is 0.274.\n")
+cat("(iii) The sensitivity is 0.948 and the specificity is 0.504.\n")
+#(iv)
+pred.roc <- predict(tModel, test, type="prob")[ ,2]
+f.pred <- prediction(pred.roc, test$income)
+f.perf <- performance(f.pred, "tpr", "fpr")
+plot(f.perf, colorize=T, lwd=3,main="ROC Curve")
+abline(0,1)
+pred.auc <- performance(f.pred, measure = "auc")
+cat("(iv)The area under curve (AUC) for this model is ", round(pred.auc@y.values[[1]], 3))
+```
+
+####2.1 (d)
+```{r}
+options("digits"=5)
+printcp(tModel)
+cat("This tree will not benefit from pruning since it xerror decrease all the time with the increasing of split.")
+```
+
+####2.1 (e)
+```{r}
+#(i)
+table(train$income)
+cat("(i) There are 22653 observations in the class <=50K and there are 7508 observations in the class >50K.")
+#(ii)
+index <- which(train$income == ">50K")
+posData <- train[index, ]
+negData <- train[-index, ]
+set.seed(1122)
+spIndx <- sample(1:nrow(negData),7508)
+spNeg <- negData[spIndx, ]
+newTrain <- rbind(spNeg,posData)
+table(newTrain$income)
+#(iii)
+options("digits"=3)
+new.tModel <- rpart(income~., data = newTrain)
+new.predT <- predict(new.tModel, test, type="class")
+confusionMatrix(new.predT, as.factor(test$income))
+cat("i) The balanced accuracy is 0.804.\n")
+cat("ii) The balanced error rate is 0.196.\n")
+cat("iii) The sensitivity is 0.773 and the specificity is 0.834.\n")
+
+new.pred.roc <- predict(new.tModel, test, type="prob")[ ,2]
+new.f.pred <- prediction(new.pred.roc, test$income)
+new.f.perf <- performance(new.f.pred, "tpr", "fpr")
+plot(new.f.perf, colorize=T, lwd=3,main="New ROC Curve")
+abline(0,1)
+new.pred.auc <- performance(new.f.pred, measure = "auc")
+cat("iv) The area under curve (AUC) for this model is ", round(new.pred.auc@y.values[[1]], 3))
+```
+
+####2.1 (f)
+```{r}
+cat("The model in (e) has a higher balanced accuarcy and AUC than model in (e), which means the model in (e) is better. 
+    Model in (e) has a higher specificity whereas model in (c) has a higher sensitivity may because that the training set in (c) has more obeservations of class <=50K.")
+```
+
+
+###2.2 Random Forest
+####2.2 (a)
+```{r}
+set.seed(1122)
+rf.model <- randomForest(income ~ ., data=train, importance=T)
+rf.pred <- predict(rf.model,test,type="class")
+confusionMatrix(rf.pred, test$income)
+
+#(i)
+cat("(i) The balanced accuracy is 0.632.\n")
+
+#(ii)
+cat("(ii) The accuracy is 0.818.\n")
+
+#(iii)
+cat("(iii) The sensitivity is 0.997 and the specificity is 0.267.\n")
+
+#(iv)
+table(test$income)
+cat("\n(iv) There are 3700 observations labeled >50K and there are 11360 labeled <=50K.\n")
+
+#(v)
+cat("(v) Yes. Because the test dataset is highly imbalanced. There are much more observations of class <=50K than class >50K.\n")
+
+#(vi)
+varImpPlot(rf.model)
+cat("\n(vi) For MeanDecreaseAccuracy, the most important variable is capital_gain and the least important one is native_country.
+    For MeanDecreaseGini, the most important variable is capital_gain and  the least important one is race.\n")
+
+#(vii)
+print(rf.model)
+cat("\n(vii) The number of variables tried at each split is 3.\n")
+``` 
+####2.2 (b)
+```{r}
+#option(bitmapType = 'cairo')
+mtry <- tuneRF(train[,-c(15)], train$income, ntreeTry=500, stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+
+#(i)
+cat("\n(i) The default value of mtry is 3.\n\n")
+
+#(ii)
+print(mtry)
+cat("\n(ii) The optimal value of mtry is 2.\n\n")
+
+#(iii)
+new.rf.model <- randomForest(income ~ ., data=train, mtry=2, importance=T)
+new.rf.pred <- predict(new.rf.model,test,type="class")
+confusionMatrix(new.rf.pred, test$income)
+cat("(iii)\n")
+cat("(1) The balanced accuracy is 0.646.\n")
+cat("(2) The accuracy is 0.824.\n")
+cat("(3) The sensitivity is 0.996 and the specificity is 0.296.\n")
+varImpPlot(new.rf.model)
+cat("(4) For MeanDecreaseAccuracy, the most important variable is capital_gain and the least important one is native_country.
+    For MeanDecreaseGini, the most important variable is relationship and the least important one is race.\n")
+
+#(iv)
+cat("(iv) This model has a higher balanced accuracy, accuracy and specificity than the model in 2.2(a).
+    Their sensitivity and variable importance are almost same.")
+```
+
+###2.3 Association Rules
+####2.3 (i)
+```{r}
+trans <- read.transactions("groceries.csv",format="basket",sep=",")
+rule <- apriori(trans)
+summary(rule)
+cat("\n(i) The number of rules is 0.\n")
+```
+####2.3 (ii)
+```{r}
+rule.1 <- apriori(trans,parameter=list(supp=0.001))
+summary(rule.1)
+cat("\n(ii) Using a minimum support value of 0.001, there are 410 rules now.\n")
+```
+####2.3 (iii) and (iv)
+```{r}
+sort(itemFrequency(trans))
+cat("\n(iii) Whole milk is the most frequently bought item and its frequency is 0.25551601.\n")
+cat("(iv) Baby food is the least frequently bought item and its frequency is 0.00010168.\n")
+```
+####2.3 (v)
+```{r}
+inspect(sort(rule.1, decreasing = T, by="support")[1:5])
+```
+####2.3 (vi)
+```{r}
+inspect(sort(rule.1, decreasing = T, by="confidence")[1:5])
+```
+####2.3 (vii)
+```{r}
+inspect(sort(rule.1, decreasing = F, by="support")[1:5])
+```
+####2.3 (viii)
+```{r}
+inspect(sort(rule.1, decreasing = F, by="confidence")[1:5])
+```

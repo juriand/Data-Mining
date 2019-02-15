@@ -1,0 +1,16 @@
+---
+title: "CS 422 Section 02"
+output: html_notebook
+author: Juanyan Wang
+---
+
+```{r}
+plot(cars,main="The Cars Dataset")
+summary(cars)
+```
+```{r}
+a <- read.csv("student.csv", sep=";", header=T)
+b <- data.frame(name="Brad Pitt",id=40051,gpa=2.21,grade="C")
+data <- rbind(a,b)
+data
+```

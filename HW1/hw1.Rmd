@@ -1,0 +1,120 @@
+---
+title: "CS 422 Section 02"
+output: html_notebook
+author: Juanyan Wang
+---
+
+```{r}
+#2.1
+#(a)
+college <- read.csv("College.csv", sep=",", header=T)
+
+#(b)
+rownames(college) <- college[,1]
+fix(college)
+college <- college[,-1]
+fix(college)
+
+#(c)
+#i
+summary(college)
+#ii
+pairs(college[,1:10])
+#iii
+boxplot(perc.alumni~Private,data=college,xlab = "Private",ylab = "Alumni", 
+    main = "Alumni Donation")
+#iv
+boxplot(PhD~Private,data=college,xlab = "Private",ylab = "PhD", 
+    main = "The Percent of PhD")
+#v
+Elite <- rep("No",nrow(college))
+Elite[college$Top10perc > 50] <- "Yes"
+Elite <- as.factor(Elite)
+college <- data.frame(college,Elite)
+summary(college)
+#vi
+par(mfrow=c(2,2))
+hist(college$Books,main="Book Cost",xlab = "Book cost",xlim=c(0,1500),breaks = 400)
+hist(college$F.Undergrad,main="The Percent of Full-time Undergraduate",xlab = "F Undergrad",xlim=c(0,35000),breaks = 400)
+hist(college$P.Undergrad,main="The Percent of Part-time Undergraduate",xlab = "P Undergrad",xlim=c(0,6000),breaks = 400)
+#vii
+hist(college$Apps,main="The Number of Applications",xlab = "App",xlim=c(0,20000),breaks = 2000)
+hist(college$Accept,main="The Number of Accepted Students",xlab = "Accept",xlim=c(0,20000),breaks = 2000)
+hist(college$Enroll,main="The Number of Enrollment",xlab = "Enroll",xlim=c(0,8000),breaks = 2000)
+print("The trend of the number of applications, accepted applications, enrolled students are all in a power-law distribution")
+
+```
+
+
+```{r}
+#2.2
+#(a)
+nba <- read.csv("nba.csv", sep=",", header=T)
+nba$FG
+pairs(~PTS+FG,data=nba,main="Correlation Plot of PTS and FG")
+model <- lm(PTS~FG,data=nba)
+summary(model)
+print("It is a good model since F-statistic > 1 and the low p-value of FG shows that FG is a good predictor. The relatively high adjusted R-squared and relatively low RSE show that this model fits well.")
+
+#(b)
+plot(nba$FG,nba$PTS,xlab="FG",ylab="PTS",main="Linear Regression Line")
+abline(model)
+
+#(c)
+set.seed(1122)
+index <- sample(1:nrow(nba),250)
+train <- nba[index,]
+test <- nba[-index,]
+library(psych)
+corr <- data.frame(train$MIN,train$FG,train$FGA,train$X3P,train$X3PA,train$FT,train$PTS)
+pairs.panels(corr)
+corr <- data.frame(train$FTA,train$OR,train$DR,train$TOT,train$PTS)
+pairs.panels(corr)
+corr <- data.frame(train$A,train$PF,train$ST,train$TO,train$BL,train$PTS)
+pairs.panels(corr)
+pairs(~PTS+FG+FT+TOT,data=train,main="Correlation Plot")
+
+#(d)
+mulmodel <- lm(PTS~FG+FT+TOT,data=train)
+summary(mulmodel)
+print("F-statistic > 1 shows that at least one predictor is useful; 
+      The low p-value of FG and FT show that these two predictors are good whereas the relatively high p-value of TOT shows it is very useful as FG and FT;
+      The value of adjusted R-squared 0.98 shows that this model fits well and also not overfit;
+      The relatively low value of RSE also shows this model fits well.")
+
+#(e)
+plot(mulmodel,1)
+print("The shape of this model is good enough in the range 0~30. However, we can predict the fitted value after 30, which shows that there may be some non-linearlity in the data. ")
+
+#(f)
+hist(mulmodel$residuals)
+print("It neraly follows a Gaussian distribution")
+
+#(g)
+predicted <- predict.lm(mulmodel,newdata=test)
+observed <- data.frame(test$PTS)
+vec <- data.frame(predicted,observed)
+same <- rep("NotMatched",nrow(vec))
+same[round(vec$predicted) == vec$test.PTS] <- "Matched"
+same <- as.factor(same)
+summary(same)
+
+#(h)
+n <- dim(test)[1]
+p <- 3
+residual <- observed - predicted
+RSS <- sum((residual)^2)
+TSS <- sum((test$PTS - mean(test$PTS))^2)
+F <- ((TSS - RSS)/p)/(RSS/(n-p-1))
+RSE  <- sqrt(1/(n-p-1)*RSS)
+print("RSS:")
+RSS
+print("TSS:")
+TSS
+print("F-statistc:")
+F
+print("RSE:")
+RSE
+
+```
+
